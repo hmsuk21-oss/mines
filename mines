@@ -1,0 +1,106 @@
+import tkinter as tk
+import random
+
+class Minesweeper(tk.Frame):
+    def __init__(self, master, rows=10, cols=10, mines=10):
+        super().__init__(master)
+        self.master = master
+        self.rows = rows
+        self.cols = cols
+        self.mines = mines
+        self.buttons = [[None for _ in range(cols)] for _ in range(rows)]
+        self.mines_locations = set()
+        self.is_game_over = False
+        self.create_widgets()
+        self.place_mines()
+        self.calculate_numbers()
+        self.pack()
+
+    def create_widgets(self):
+        for r in range(self.rows):
+            for c in range(self.cols):
+                btn = tk.Button(self, width=2, height=1, command=lambda r=r, c=c: self.on_left_click(r, c))
+                btn.bind('<Button-3>', lambda e, r=r, c=c: self.on_right_click(r, c))
+                btn.grid(row=r, column=c)
+                self.buttons[r][c] = btn
+
+    def place_mines(self):
+        while len(self.mines_locations) < self.mines:
+            r = random.randint(0, self.rows - 1)
+            c = random.randint(0, self.cols - 1)
+            self.mines_locations.add((r, c))
+
+    def calculate_numbers(self):
+        self.numbers = [[0 for _ in range(self.cols)] for _ in range(self.rows)]
+        for r, c in self.mines_locations:
+            for dr in [-1, 0, 1]:
+                for dc in [-1, 0, 1]:
+                    nr, nc = r + dr, c + dc
+                    if 0 <= nr < self.rows and 0 <= nc < self.cols:
+                        self.numbers[nr][nc] += 1
+        for r, c in self.mines_locations:
+            self.numbers[r][c] = -1
+
+    def on_left_click(self, r, c):
+        if self.is_game_over or self.buttons[r][c]['state'] == 'disabled':
+            return
+        if (r, c) in self.mines_locations:
+            self.buttons[r][c]['text'] = '💣'
+            self.buttons[r][c]['bg'] = 'red'
+            self.show_mines()
+            self.is_game_over = True
+            tk.messagebox.showinfo("게임 종료", "지뢰를 밟았습니다! 게임 오버!")
+            return
+        self.reveal(r, c)
+        if self.check_win():
+            self.is_game_over = True
+            tk.messagebox.showinfo("승리!", "모든 지뢰를 피했습니다! 승리!")
+
+    def on_right_click(self, r, c):
+        if self.is_game_over or self.buttons[r][c]['state'] == 'disabled':
+            return
+        btn = self.buttons[r][c]
+        if btn['text'] == '':
+            btn['text'] = '⛳'
+        elif btn['text'] == '⛳':
+            btn['text'] = ''
+
+    def reveal(self, r, c):
+        btn = self.buttons[r][c]
+        if btn['state'] == 'disabled' or btn['text'] == '⛳':
+            return
+        btn['state'] = 'disabled'
+        btn['relief'] = 'sunken'
+        val = self.numbers[r][c]
+        if val == -1:
+            return
+        if val > 0:
+            btn['text'] = str(val)
+        else:
+            for dr in [-1, 0, 1]:
+                for dc in [-1, 0, 1]:
+                    nr, nc = r + dr, c + dc
+                    if 0 <= nr < self.rows and 0 <= nc < self.cols:
+                        if self.buttons[nr][nc]['state'] != 'disabled':
+                            self.reveal(nr, nc)
+
+    def show_mines(self):
+        for r, c in self.mines_locations:
+            btn = self.buttons[r][c]
+            btn['text'] = '💣'
+            btn['bg'] = 'red'
+
+    def check_win(self):
+        for r in range(self.rows):
+            for c in range(self.cols):
+                btn = self.buttons[r][c]
+                if self.numbers[r][c] != -1 and btn['state'] != 'disabled':
+                    return False
+        return True
+
+if __name__ == '__main__':
+    import tkinter.messagebox
+    root = tk.Tk()
+    root.title("지뢰찾기")
+    game = Minesweeper(root, rows=10, cols=10, mines=10)
+    root.mainloop()
